@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl - loaders - MMD loader</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospace;
+            color: #000;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #info {
+            color: #000;
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            display: block;
+        }
+
+        #info a, .button {
+            color: #f00;
+            font-weight: bold;
+            text-decoration: underline;
+            cursor: pointer
+        }
+    </style>
+</head>
+
+<body>
+<div id="info">
+    <a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> - MMDLoader test<br/>
+    <a href="https://github.com/mrdoob/three.js/tree/master/examples/models/mmd#readme" target="_blank" rel="noopener">MMD
+        Assets license</a><br/>
+    Copyright
+    <a href="http://www.geocities.jp/higuchuu4/index_e.htm" target="_blank" rel="noopener">Model Data</a>
+    <a href="http://www.nicovideo.jp/watch/sm13147122" target="_blank" rel="noopener">Dance Data</a>
+    <a href="http://www.nicovideo.jp/watch/sm11938255" target="_blank" rel="noopener">Audio Data</a><br/>
+    Camera is customized from <a href="http://www.nicovideo.jp/watch/sm19168559" target="_blank" rel="noopener">this
+    Data</a>
+    <span id="loading">Loading</span>
+</div>
+
+<script src="js/three.js"></script>
+
+<script src="js/three.xr.js"></script>
+
+<script src="js/mmdparser.min.js"></script>
+<script src="js/ammo.js"></script>
+
+<script src="js/TGALoader.js"></script>
+<script src="js/MMDLoader.js"></script>
+<script src="js/OutlineEffect.js"></script>
+<script src="js/animation/CCDIKSolver.js"></script>
+<script src="js/animation/MMDPhysics.js"></script>
+<script src="js/animation/MMDAnimationHelper.js"></script>
+
+<script>
+
+	var container;
+
+	var mesh, camera, scene, renderer, effect;
+	var mmdHelper;
+
+	var ready = false;
+
+	var clock = new THREE.Clock();
+
+	THREE.WebXRUtils.getDisplays().then(init);
+
+	function init(displays) {
+
+		container = document.createElement('div');
+		document.body.appendChild(container);
+
+		camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+
+		// scene
+
+		scene = new THREE.Scene();
+
+		var ambient = new THREE.AmbientLight(0x666666);
+		scene.add(ambient);
+
+		var directionalLight = new THREE.DirectionalLight(0x887766);
+		directionalLight.position.set(-1, 1, 1).normalize();
+		scene.add(directionalLight);
+
+		renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true
+		});
+		renderer.autoClear = false;
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		container.appendChild(renderer.domElement);
+
+		effect = new THREE.OutlineEffect(renderer);
+
+		window.addEventListener('resize', onWindowResize, false);
+
+		// load miku and music into scene, then we're ready
+
+		var modelFile = 'models/mmd/miku/miku_v2.pmd';
+		var vmdFiles = ['models/mmd/vmds/wavefile_v2.vmd'];
+		var audioFile = 'models/mmd/audios/wavefile_short.mp3';
+
+		var audioParams = {delayTime: 160 * 1 / 30};
+
+		mmdHelper = new THREE.MMDAnimationHelper();
+
+		var loader = new THREE.MMDLoader();
+
+		loader.loadWithAnimation(modelFile, vmdFiles, function (mmd) {
+
+			mesh = mmd.mesh;
+			mesh.scale.setScalar(0.1);
+			mesh.position.z = -2;
+			mesh.position.y = -1;
+
+			mmdHelper.add(mesh, {
+				animation: mmd.animation,
+				physics: true
+			});
+
+			new THREE.AudioLoader().load(audioFile, function (buffer) {
+
+				var listener = new THREE.AudioListener();
+				var audio = new THREE.Audio(listener).setBuffer(buffer);
+
+				listener.position.z = 1;
+
+				mmdHelper.add(audio, audioParams);
+
+				scene.add(audio);
+				scene.add(listener);
+				scene.add(mesh);
+
+				ready = true;
+
+			}, onProgress, onError);
+
+
+		}, onProgress, onError);
+
+		var loadingSpan = document.querySelector('#loading');
+		function onProgress(xhr) {
+			if (xhr.lengthComputable) {
+				var percentComplete = xhr.loaded / xhr.total * 100;
+				loadingSpan.textContent = Math.round(percentComplete, 2) + '% downloaded';
+			}
+		};
+		function onError(error) {
+			console.log("Error: ", error);
+		};
+
+		// Init WebXR
+		effect.xr = new THREE.WebXRManager({}, displays, effect, camera, scene, render);
+
+		effect.animate(render);
+
+	}
+
+	function onWindowResize() {
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+
+		effect.setSize(window.innerWidth, window.innerHeight);
+	}
+
+	function render() {
+		if (ready) {
+			mmdHelper.update(clock.getDelta());
+		}
+
+		if(!effect.xr.sessionActive){
+			effect.render(scene, camera);
+		}
+	}
+
+</script>
+
+</body>
+</html>
