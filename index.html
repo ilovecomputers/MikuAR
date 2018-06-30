@@ -94,8 +94,8 @@
 		scene.add(directionalLight);
 
 		renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            alpha: true
+			antialias: true,
+			alpha: true
 		});
 		renderer.autoClear = false;
 		renderer.setPixelRatio(window.devicePixelRatio);
@@ -130,33 +130,44 @@
 				physics: true
 			});
 
-			new THREE.AudioLoader().load(audioFile, function (buffer) {
+			function playSound() {
 
 				var listener = new THREE.AudioListener();
-				var audio = new THREE.Audio(listener).setBuffer(buffer);
+				new THREE.AudioLoader().load(audioFile, function (buffer) {
 
-				listener.position.z = 1;
+					var audio = new THREE.Audio(listener).setBuffer(buffer);
 
-				mmdHelper.add(audio, audioParams);
+					listener.position.z = 1;
 
-				scene.add(audio);
-				scene.add(listener);
-				scene.add(mesh);
+					mmdHelper.add(audio, audioParams);
 
-				ready = true;
+					scene.add(audio);
+					scene.add(listener);
+					scene.add(mesh);
 
-			}, onProgress, onError);
+					ready = true;
 
+				}, onProgress, onError);
+
+				var source = listener.context.createBufferSource();
+				source.connect(listener.context.destination);
+				source.start();
+			}
+
+			window.addEventListener('touchstart', playSound);
+			document.addEventListener('click', playSound);
 
 		}, onProgress, onError);
 
 		var loadingSpan = document.querySelector('#loading');
+
 		function onProgress(xhr) {
 			if (xhr.lengthComputable) {
 				var percentComplete = xhr.loaded / xhr.total * 100;
 				loadingSpan.textContent = Math.round(percentComplete, 2) + '% downloaded';
 			}
 		};
+
 		function onError(error) {
 			console.log("Error: ", error);
 		};
@@ -180,7 +191,7 @@
 			mmdHelper.update(clock.getDelta());
 		}
 
-		if(!effect.xr.sessionActive){
+		if (!effect.xr.sessionActive) {
 			effect.render(scene, camera);
 		}
 	}
